@@ -13,6 +13,7 @@ export function updateHtmlOutput(workspace, htmlOutput) {
             Array.from(el.classList).forEach(className => {
                 if (!className.startsWith('constructor-') && 
                     className !== 'selected' && 
+                    className !== 'drop-zone' &&
                     className !== 'dragging') {
                     realElement.classList.add(className);
                 }

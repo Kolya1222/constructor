@@ -6,7 +6,20 @@ export function initDragAndDrop(workspace) {
     // Перетаскивание элементов с панели
     document.querySelectorAll('.element-icon').forEach(icon => {
         icon.addEventListener('dragstart', function(e) {
-            e.dataTransfer.setData('text/plain', this.getAttribute('data-type'));
+            // Собираем все data-атрибуты элемента
+            const elementData = {
+                type: this.getAttribute('data-type')
+            };
+            
+            // Для TV элементов собираем дополнительные данные
+            if (elementData.type === 'tv') {
+                elementData.tvName = this.getAttribute('data-tv-name');
+                elementData.tvType = this.getAttribute('data-tv-type');
+                elementData.tvId = this.getAttribute('data-tv-id');
+                elementData.tvLabel = this.querySelector('.element-label')?.textContent || 'TV поле';
+            }
+            
+            e.dataTransfer.setData('text/plain', JSON.stringify(elementData));
         });
     });
     
@@ -58,20 +71,24 @@ export function initDragAndDrop(workspace) {
         }
         
         // Только если это не перемещение, создаем новый элемент
-        const elementType = e.dataTransfer.getData('text/plain');
-        const dropZone = findDropZone(e);
-        
-        if (elementType) {
-            const newElement = createElement(elementType);
+        try {
+            const elementData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const dropZone = findDropZone(e);
             
-            if (dropZone) {
-                dropZone.appendChild(newElement);
-            } else {
-                workspace.appendChild(newElement);
+            if (elementData && elementData.type) {
+                const newElement = createElement(elementData.type, elementData);
+                
+                if (dropZone) {
+                    dropZone.appendChild(newElement);
+                } else {
+                    workspace.appendChild(newElement);
+                }
+                
+                selectElement(newElement);
+                window.constructorApp.updateHtmlOutput();
             }
-            
-            selectElement(newElement);
-            window.constructorApp.updateHtmlOutput();
+        } catch (error) {
+            console.error('Error parsing drag data:', error);
         }
     });
     

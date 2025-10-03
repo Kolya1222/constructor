@@ -213,6 +213,22 @@ const elementPropertiesConfig = {
     // Специфические свойства для разных типов элементов
     text: {
         text: { type: 'textarea', label: 'Текст', category: 'content', placeholder: 'Введите ваш текст здесь...' },
+        textTag: { 
+            type: 'select', 
+            label: 'HTML тег', 
+            category: 'content',
+            options: [
+                {value: 'div', label: 'Div (по умолчанию)'},
+                {value: 'p', label: 'Параграф (p)'},
+                {value: 'h1', label: 'Заголовок 1 (h1)'},
+                {value: 'h2', label: 'Заголовок 2 (h2)'},
+                {value: 'h3', label: 'Заголовок 3 (h3)'},
+                {value: 'h4', label: 'Заголовок 4 (h4)'},
+                {value: 'h5', label: 'Заголовок 5 (h5)'},
+                {value: 'h6', label: 'Заголовок 6 (h6)'},
+                {value: 'span', label: 'Span (строчный)'}
+            ] 
+        },
         whiteSpace: { type: 'select', label: 'Перенос текста', category: 'typography',
             options: [
                 {value: '', label: 'По умолчанию'},
@@ -293,6 +309,28 @@ const elementPropertiesConfig = {
         min: { type: 'text', label: 'Минимум', category: 'content', placeholder: '0' },
         max: { type: 'text', label: 'Максимум', category: 'content', placeholder: '100' },
         step: { type: 'text', label: 'Шаг', category: 'content', placeholder: '1' }
+    },
+    link: {
+        text: { type: 'text', label: 'Текст ссылки', category: 'content', placeholder: 'Текст ссылки' },
+        href: { type: 'text', label: 'URL адрес', category: 'content', placeholder: 'https://example.com' },
+        target: { type: 'select', label: 'Открывать в', category: 'content',
+            options: [
+                {value: '_self', label: 'Текущее окно (_self)'},
+                {value: '_blank', label: 'Новое окно (_blank)'},
+                {value: '_parent', label: 'Родительское окно (_parent)'},
+                {value: '_top', label: 'Верхнее окно (_top)'}
+            ] 
+        },
+        title: { type: 'text', label: 'Подсказка при наведении', category: 'content', placeholder: 'Описание ссылки' },
+        rel: { type: 'select', label: 'Атрибут rel', category: 'content',
+            options: [
+                {value: '', label: 'Нет'},
+                {value: 'nofollow', label: 'Nofollow'},
+                {value: 'noopener', label: 'Noopener'},
+                {value: 'noreferrer', label: 'Noreferrer'},
+                {value: 'external', label: 'External'}
+            ] 
+        }
     }
 };
 
@@ -447,9 +485,37 @@ function applyPropertyChange(propertyName, value) {
         case 'text':
             if (propertyName === 'text') {
                 targetElement.textContent = value;
+            } else if (propertyName === 'textTag') {
+                // Сохраняем текущий текст и стили
+                const currentText = targetElement.textContent;
+                const currentStyles = targetElement.style.cssText;
+                const currentClasses = targetElement.className;
+                
+                // Создаем новый элемент с нужным тегом
+                const newElement = document.createElement(value);
+                newElement.textContent = currentText;
+                newElement.style.cssText = currentStyles;
+                newElement.className = currentClasses;
+                
+                // Заменяем элемент
+                const contentContainer = selectedElement.querySelector('.element-content');
+                contentContainer.innerHTML = '';
+                contentContainer.appendChild(newElement);
             }
             break;
-            
+        case 'link':
+            if (propertyName === 'text') {
+                targetElement.textContent = value;
+            } else if (propertyName === 'href') {
+                targetElement.href = value;
+            } else if (propertyName === 'target') {
+                targetElement.target = value;
+            } else if (propertyName === 'title') {
+                targetElement.title = value;
+            } else if (propertyName === 'rel') {
+                targetElement.rel = value;
+            }
+            break;    
         case 'button':
             if (propertyName === 'text') {
                 targetElement.textContent = value;
@@ -768,9 +834,25 @@ function getPropertyValue(propName, element) {
         case 'id':
             return targetElement.id || '';
         case 'classes':
-            return Array.from(element.classList)
-                .filter(c => !c.startsWith('constructor-') && c !== 'selected')
-                .join(' ');
+            // Для разных типов элементов получаем классы по-разному
+            if (elementType === 'row' || elementType === 'column') {
+                const dropZone = element.querySelector('.drop-zone');
+                if (dropZone) {
+                    return Array.from(dropZone.classList)
+                        .filter(c => !c.startsWith('constructor-') && 
+                                !['d-flex', 'flex-row', 'flex-column', 'drop-zone', 'gap-2', 'p-2'].includes(c))
+                        .join(' ');
+                }
+            } else {
+                // Для обычных элементов берем классы из внутреннего элемента
+                const contentElement = element.querySelector('.element-content > *');
+                if (contentElement) {
+                    return Array.from(contentElement.classList)
+                        .filter(c => !c.startsWith('constructor-'))
+                        .join(' ');
+                }
+            }
+            return '';
         case 'title':
             return targetElement.title || '';
         case 'dataAttributes':
@@ -872,9 +954,24 @@ function getPropertyValue(propName, element) {
         case 'text':
             if (propName === 'text') {
                 return targetElement.textContent || '';
+            } else if (propName === 'textTag') {
+                // Возвращаем текущий тег элемента или 'div' по умолчанию
+                return targetElement.tagName.toLowerCase() || 'div';
             }
             break;
-            
+        case 'link':
+            if (propName === 'text') {
+                return targetElement.textContent || '';
+            } else if (propName === 'href') {
+                return targetElement.href || '';
+            } else if (propName === 'target') {
+                return targetElement.target || '';
+            } else if (propName === 'title') {
+                return targetElement.title || '';
+            } else if (propName === 'rel') {
+                return targetElement.rel || '';
+            }
+            break;
         case 'button':
             if (propName === 'text') {
                 return targetElement.textContent || '';
