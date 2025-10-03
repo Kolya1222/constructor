@@ -123,5 +123,5 @@
     </script>
 
     <script type="module" src="{{ MODX_BASE_URL }}assets/plugins/constructor/js/bbevo/main.js"></script>
-    <script src="{{ MODX_BASE_URL }}assets/modules/formbuild/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ MODX_BASE_URL }}assets/plugins/constructor/js/bootstrap.bundle.min.js"></script>
 @endsection
