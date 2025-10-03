@@ -50,7 +50,7 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
         // Загружаем сохраненные данные из таблицы
         $savedData = null;
         if ($documentId > 0) {
-            $savedRecord = \Illuminate\Support\Facades\DB::table('document_builder_data')
+            $savedRecord = DB::table('document_builder_data')
                 ->where('document_id', $documentId)
                 ->first();
             if ($savedRecord) {
@@ -61,7 +61,7 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
                 $modx->log(1, "Loaded builder data for document $documentId: " . count($savedData['elements']) . " elements");
             }
         }
-        $renderedContent = view('main::bbevo', [
+        $renderedContent = view('constructor::bbevo', [
             'tvCategories' => $tvCategories,
             'tvTypes' => $tvService->getTVTypes(),
             'savedData' => $savedData,

@@ -2,15 +2,15 @@
   "name": "roilafx/constructorevo",
   "description": "Модуль для создания наполнения страницы при помощи Drag and Drop",
   "autoload": {
-    "psr-4": {
-      "roilafx\\constructor\\": "src"
-    }
+      "psr-4": {
+          "roilafx\\constructor\\": "src/"
+      }
   },
   "extra": {
-    "laravel": {
-      "providers": [
-        "roilafx\\constructor\\constructorServiceProvider"
-      ]
-    }
+      "laravel": {
+          "providers": [
+              "roilafx\\constructor\\ConstructorServiceProvider"
+          ]
+      }
   }
 }
