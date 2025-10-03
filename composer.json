@@ -1,8 +1,6 @@
 {
   "name": "roilafx/constructorevo",
-  "require": {
-
-  },
+  "description": "Модуль для создания наполнения страницы при помощи Drag and Drop",
   "autoload": {
     "psr-4": {
       "roilafx\\constructor\\": "src"
