@@ -3,15 +3,14 @@
   "description": "Модуль для создания наполнения страницы при помощи Drag and Drop",
   "autoload": {
     "psr-4": {
-      "roilafx\\constructor\\": "src"
+      "kolya1222\\constructor\\": "src"
     }
   },
   "extra": {
     "laravel": {
       "providers": [
-        "roilafx\\constructor\\constructorServiceProvider"
+        "kolya1222\\constructor\\constructorServiceProvider"
       ]
-
     }
   }
 }
