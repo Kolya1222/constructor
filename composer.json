@@ -1,5 +1,5 @@
 {
-  "name": "roilafx/constructor",
+  "name": "roilafx/constructorevo",
   "require": {
 
   },
@@ -11,7 +11,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "roilafx\\constructor\\MainServiceProvider"
+        "roilafx\\constructor\\constructorServiceProvider"
       ]
 
     }
