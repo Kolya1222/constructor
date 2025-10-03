@@ -1,0 +1,19 @@
+{
+  "name": "roilafx/constructor",
+  "require": {
+
+  },
+  "autoload": {
+    "psr-4": {
+      "roilafx\\constructor\\": "src"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "roilafx\\constructor\\MainServiceProvider"
+      ]
+
+    }
+  }
+}

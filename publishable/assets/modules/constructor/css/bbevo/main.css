@@ -1,0 +1,343 @@
+:root {
+    --sidebar-width: 50px;
+    --properties-panel-width: 320px;
+    --header-height: 60px;
+    --transition-duration: 0.3s;
+    --primary-color: #2c3e50;
+    --secondary-color: #f8f9fa;
+    --border-color: #dee2e6;
+    --accent-color: #0d6efd;
+    --text-color: #212529;
+    --muted-color: #495057;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+}
+
+/* Header styles */
+.header {
+    background: var(--primary-color);
+    color: white;
+    height: var(--header-height);
+    position: fixed;
+    width: 100%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 1000;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Elements sidebar */
+.elements-sidebar {
+    position: fixed;
+    left: 0;
+    top: var(--header-height);
+    bottom: 0;
+    width: var(--sidebar-width);
+    background: var(--secondary-color);
+    border-right: 1px solid var(--border-color);
+    transition: width var(--transition-duration) ease;
+    overflow: hidden;
+    z-index: 900;
+}
+
+.elements-sidebar:hover {
+    width: 200px;
+}
+
+.elements-icons {
+    padding: 10px 0;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.element-icon {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    white-space: nowrap;
+    cursor: grab;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    border-radius: 4px;
+    margin: 0 5px 5px 5px;
+}
+
+.element-icon:hover {
+    background: #e9ecef;
+}
+
+.element-icon i {
+    font-size: 18px;
+    min-width: 20px;
+    color: var(--muted-color);
+}
+
+.element-icon:active {
+    transform: scale(0.95);
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+}
+
+.element-label {
+    margin-left: 15px;
+    opacity: 0;
+    transition: opacity 0.2s ease 0.1s;
+    font-size: 14px;
+}
+
+.elements-sidebar:hover .element-label {
+    opacity: 1;
+}
+
+/* Properties panel */
+.properties-panel {
+    position: fixed;
+    right: 0;
+    top: var(--header-height);
+    bottom: 0;
+    width: var(--properties-panel-width);
+    background: white;
+    border-left: 1px solid var(--border-color);
+    overflow-y: auto;
+    padding: 20px;
+    z-index: 900;
+}
+
+/* Workspace container */
+.workspace-container {
+    position: fixed;
+    top: var(--header-height);
+    left: var(--sidebar-width);
+    right: var(--properties-panel-width);
+    bottom: 0;
+    transition: left var(--transition-duration) ease;
+    overflow: hidden;
+    display: flex;
+    background-color: #f5f5f5;
+}
+
+/* Split view */
+.split-view {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.split-panel {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+}
+
+.split-panel:first-child {
+    border-right: 1px solid var(--border-color);
+}
+
+.panel-header {
+    padding: 10px 15px;
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.panel-header i {
+    margin-right: 10px;
+}
+
+/* Workspace area */
+.workspace {
+    background: white;
+    flex-grow: 1;
+    padding: 25px;
+    overflow: auto;
+    position: relative;
+}
+
+/* Preview panel */
+#html-output {
+    padding: 20px;
+    background: #f8f9fa;
+    font-family: monospace;
+    white-space: pre;
+    overflow: auto;
+    flex-grow: 1;
+}
+
+.properties-panel .panel-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.properties-panel .panel-title i {
+    margin-right: 10px;
+}
+
+/* Стили для элементов конструктора */
+.constructor-element {
+    transition: all 0.2s ease;
+    margin-bottom: 10px;
+    border: 1px dashed #ccc;
+    padding: 10px;
+    position: relative;
+    min-height: 50px;
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.constructor-element.selected {
+    box-shadow: 0 0 0 2px var(--accent-color);
+    border-color: var(--accent-color) !important;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.constructor-element.dragging {
+    opacity: 0.5;
+}
+
+.element-handle {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 5px;
+    margin: -10px -10px 5px -10px;
+    cursor: move;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    justify-content: space-between;
+}
+
+.element-handle i {
+    margin-right: 5px;
+}
+
+.element-content {
+    color: var(--muted-color);
+    font-size: 12px;
+    padding: 5px;
+}
+
+/* Grid overlay */
+.grid-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: linear-gradient(#e5e5e5 1px, transparent 1px),
+                        linear-gradient(90deg, #e5e5e5 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+    opacity: 0.3;
+}
+
+/* Drop zones */
+.drop-zone {
+    border: 2px dashed #aaa;
+    border-radius: 4px;
+    min-height: 50px;
+    margin: 5px 0;
+    transition: all 0.2s;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.drop-zone.active {
+    border-color: var(--accent-color);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* Property controls */
+.property-control {
+    margin-bottom: 15px;
+}
+
+.property-control label {
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+    display: block;
+    font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .split-view {
+        flex-direction: column;
+    }
+    
+    .split-panel:first-child {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Context menu */
+.context-menu {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 1000;
+    min-width: 150px;
+    display: none;
+}
+
+.context-menu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.context-menu-item:hover {
+    background-color: #f5f5f5;
+}
+
+.context-menu-item i {
+    margin-right: 8px;
+    width: 16px;
+    text-align: center;
+}
+
+/* Tooltip styles */
+.tooltip-inner {
+    max-width: 300px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}
