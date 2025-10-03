@@ -1,8 +1,8 @@
 @extends('constructor::layout')
 
 @section('body')
-    <link rel="stylesheet" href="{{ MODX_BASE_URL }}assets/modules/formbuild/css/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ MODX_BASE_URL }}assets/modules/formbuild/css/bbevo/main.css">
+    <link rel="stylesheet" href="{{ MODX_BASE_URL }}assets/plugins/constructor/css/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ MODX_BASE_URL }}assets/plugins/constructor/css/bbevo/main.css">
     <!-- Боковая панель элементов -->
     <div class="elements-sidebar">
         <div class="elements-icons">
