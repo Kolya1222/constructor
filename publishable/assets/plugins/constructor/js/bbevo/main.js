@@ -84,20 +84,19 @@ function convertHtmlElementToConstructor(htmlElement) {
 function detectElementType(htmlElement) {
     const classList = htmlElement.classList;
     const tagName = htmlElement.tagName.toLowerCase();
-    // Проверяем на TV элемент
+    
+    // Проверяем на TV элемент (первым приоритетом)
     if (htmlElement.hasAttribute('data-tv-id') || htmlElement.hasAttribute('data-tv-name')) {
         return 'tv';
     }
-    // Проверяем на ссылку
-    if (tagName === 'a' || htmlElement.querySelector('a')) {
-        return 'link';
+    
+    // Проверяем на row/column по структуре
+    if (classList.contains('d-flex') && classList.contains('drop-zone')) {
+        if (classList.contains('flex-row')) return 'row';
+        if (classList.contains('flex-column')) return 'column';
     }
-    if (classList.contains('d-flex') && classList.contains('flex-row') && classList.contains('drop-zone')) {
-        return 'row';
-    }
-    if (classList.contains('d-flex') && classList.contains('flex-column') && classList.contains('drop-zone')) {
-        return 'column';
-    }
+    
+    // Проверяем вложенные drop-zone
     const dropZone = htmlElement.querySelector('.drop-zone');
     if (dropZone) {
         if (dropZone.classList.contains('d-flex') && dropZone.classList.contains('flex-row')) {
@@ -107,16 +106,19 @@ function detectElementType(htmlElement) {
             return 'column';
         }
     }
-    if (tagName === 'div' && classList.contains('element-content') && 
-        !htmlElement.querySelector('button') && !htmlElement.querySelector('img')) {
-        return 'text';
+    
+    // Проверяем конкретные элементы
+    if (tagName === 'a' || htmlElement.querySelector('a')) {
+        return 'link';
     }
-    if (htmlElement.querySelector('button') || tagName === 'button') {
+    if (tagName === 'button' || htmlElement.querySelector('button')) {
         return 'button';
     }
-    if (htmlElement.querySelector('img') || tagName === 'img') {
+    if (tagName === 'img' || htmlElement.querySelector('img')) {
         return 'image';
     }
+    
+    // По умолчанию - текстовый элемент
     return 'text';
 }
 
@@ -160,6 +162,25 @@ function getConfigForElement(htmlElement, elementType) {
                 config.rel = linkElement.rel || '';
             }
             break;
+        case 'button':
+            const button = htmlElement.tagName === 'BUTTON' ? htmlElement : htmlElement.querySelector('button');
+            if (button) {
+                config.text = button.textContent || '';
+                // Сохраняем классы кроме стандартного 'btn'
+                const buttonClasses = Array.from(button.classList).filter(className => className !== 'btn');
+                if (buttonClasses.length > 0) {
+                    config.classes = buttonClasses.join(' ');
+                }
+            }
+            break;
+            
+        case 'image':
+            const img = htmlElement.tagName === 'IMG' ? htmlElement : htmlElement.querySelector('img');
+            if (img) {
+                config.src = img.src || '';
+                config.alt = img.alt || '';
+            }
+            break;
     }
     return config;
 }
@@ -176,10 +197,13 @@ function copyContentAndAttributes(sourceElement, targetElement, elementType) {
         case 'row':
         case 'column':
             const dropZone = contentDiv.querySelector('.drop-zone');
-            if (dropZone) {
+            if (dropZone && sourceElement) {
+                // Копируем стили самого row/column элемента
                 if (sourceElement.style.cssText) {
                     dropZone.style.cssText = sourceElement.style.cssText;
                 }
+                
+                // Копируем пользовательские классы (исключая системные)
                 const layoutClasses = ['d-flex', 'flex-row', 'flex-column', 'drop-zone', 'gap-2', 'p-2'];
                 const userClasses = Array.from(sourceElement.classList).filter(className => 
                     !layoutClasses.includes(className)
@@ -187,27 +211,30 @@ function copyContentAndAttributes(sourceElement, targetElement, elementType) {
                 if (userClasses.length > 0) {
                     dropZone.classList.add(...userClasses);
                 }
+                
+                // Копируем другие атрибуты
+                Array.from(sourceElement.attributes).forEach(attr => {
+                    if (!['class', 'style', 'data-type', 'data-builder', 'draggable'].includes(attr.name)) {
+                        dropZone.setAttribute(attr.name, attr.value);
+                    }
+                });
             }
             break;
             
         case 'text':
-            // Для текстовых элементов создаем элемент с правильным тегом
-            const textConfig = getConfigForElement(sourceElement, 'text'); // переименовано
+            const textConfig = getConfigForElement(sourceElement, 'text');
             const textTag = textConfig.textTag || 'div';
-            
-            // Создаем элемент с нужным тегом
             const textElement = document.createElement(textTag);
             
             // Копируем содержимое
             textElement.textContent = sourceElement.textContent || sourceElement.innerHTML || '';
             
-            // Копируем стили
+            // Копируем стили и классы
             if (sourceElement.style.cssText) {
                 textElement.style.cssText = sourceElement.style.cssText;
             }
             
-            // Копируем классы (кроме element-content)
-            const textSourceClasses = Array.from(sourceElement.classList).filter(className => // переименовано
+            const textSourceClasses = Array.from(sourceElement.classList).filter(className => 
                 className !== 'element-content'
             );
             if (textSourceClasses.length > 0) {
@@ -221,14 +248,12 @@ function copyContentAndAttributes(sourceElement, targetElement, elementType) {
                 }
             });
             
-            // Очищаем contentDiv и добавляем созданный элемент
             contentDiv.innerHTML = '';
             contentDiv.appendChild(textElement);
             break;
             
         case 'link':
-            // Для ссылок создаем элемент <a>
-            const linkConfig = getConfigForElement(sourceElement, 'link'); // переименовано
+            const linkConfig = getConfigForElement(sourceElement, 'link');
             const linkElement = document.createElement('a');
             
             // Устанавливаем свойства
@@ -238,28 +263,66 @@ function copyContentAndAttributes(sourceElement, targetElement, elementType) {
             if (linkConfig.title) linkElement.title = linkConfig.title;
             if (linkConfig.rel) linkElement.rel = linkConfig.rel;
             
-            // Копируем стили
+            // Копируем стили и классы
             if (sourceElement.style.cssText) {
                 linkElement.style.cssText = sourceElement.style.cssText;
             }
             
-            // Копируем классы
-            const linkSourceClasses = Array.from(sourceElement.classList); // переименовано
+            const linkSourceClasses = Array.from(sourceElement.classList);
             if (linkSourceClasses.length > 0) {
                 linkElement.classList.add(...linkSourceClasses);
             }
             
-            // Очищаем contentDiv и добавляем созданную ссылку
             contentDiv.innerHTML = '';
             contentDiv.appendChild(linkElement);
             break;
             
+        case 'button':
+            const buttonConfig = getConfigForElement(sourceElement, 'button');
+            const buttonElement = document.createElement('button');
+            buttonElement.className = 'btn';
+            buttonElement.textContent = buttonConfig.text || 'Кнопка';
+            
+            // Копируем стили и дополнительные классы
+            if (sourceElement.style.cssText) {
+                buttonElement.style.cssText = sourceElement.style.cssText;
+            }
+            
+            const buttonSourceClasses = Array.from(sourceElement.classList).filter(className => 
+                className !== 'btn'
+            );
+            if (buttonSourceClasses.length > 0) {
+                buttonElement.classList.add(...buttonSourceClasses);
+            }
+            
+            contentDiv.innerHTML = '';
+            contentDiv.appendChild(buttonElement);
+            break;
+            
+        case 'image':
+            const imgConfig = getConfigForElement(sourceElement, 'image');
+            const imgElement = document.createElement('img');
+            imgElement.src = imgConfig.src || '';
+            imgElement.alt = imgConfig.alt || 'Изображение';
+            imgElement.style.maxWidth = '100%';
+            
+            // Копируем дополнительные стили
+            if (sourceElement.style.cssText) {
+                imgElement.style.cssText = sourceElement.style.cssText;
+            }
+            
+            // Копируем классы
+            const imgSourceClasses = Array.from(sourceElement.classList);
+            if (imgSourceClasses.length > 0) {
+                imgElement.classList.add(...imgSourceClasses);
+            }
+            
+            contentDiv.innerHTML = '';
+            contentDiv.appendChild(imgElement);
+            break;
+            
         case 'tv':
-            Array.from(sourceElement.attributes).forEach(attr => {
-                if (!['data-builder', 'draggable'].includes(attr.name)) {
-                    contentDiv.setAttribute(attr.name, attr.value);
-                }
-            });
+            // Копируем TV-атрибуты в сам элемент конструктора
             if (sourceElement.hasAttribute('data-tv-id')) {
                 targetElement.setAttribute('data-tv-id', sourceElement.getAttribute('data-tv-id'));
             }
@@ -269,31 +332,14 @@ function copyContentAndAttributes(sourceElement, targetElement, elementType) {
             if (sourceElement.hasAttribute('data-tv-type')) {
                 targetElement.setAttribute('data-tv-type', sourceElement.getAttribute('data-tv-type'));
             }
-            break;
             
-        default:
-            Array.from(sourceElement.attributes).forEach(attr => {
-                if (!['data-builder', 'draggable'].includes(attr.name)) {
-                    contentDiv.setAttribute(attr.name, attr.value);
-                }
-            });
-            break;
-    }
-    
-    // Обрабатываем контент для специфичных типов
-    switch (elementType) {
-        case 'tv':
+            // Копируем контент
             contentDiv.innerHTML = sourceElement.innerHTML || '{{$documentObject[\'' + (sourceElement.getAttribute('data-tv-name') || '') + '\']}}';
             break;
             
-        case 'row':
-        case 'column':
-            break;
-            
         default:
-            if (elementType !== 'row' && elementType !== 'column' && elementType !== 'text' && elementType !== 'link') {
-                contentDiv.innerHTML = sourceElement.innerHTML;
-            }
+            // Для остальных типов просто копируем innerHTML
+            contentDiv.innerHTML = sourceElement.innerHTML;
             break;
     }
 }
@@ -302,11 +348,18 @@ function copyContentAndAttributes(sourceElement, targetElement, elementType) {
 function processNestedElements(sourceElement, targetElement, elementType) {
     if (elementType === 'row' || elementType === 'column') {
         let sourceDropZone = sourceElement;
+        
+        // Если сам элемент не drop-zone, ищем вложенный
         if (!sourceElement.classList.contains('drop-zone')) {
             sourceDropZone = sourceElement.querySelector('.drop-zone');
         }
+        
         const targetDropZone = targetElement.querySelector('.drop-zone');
+        
         if (sourceDropZone && targetDropZone) {
+            // Очищаем target drop-zone (может содержать элементы по умолчанию)
+            targetDropZone.innerHTML = '';
+            
             // Рекурсивно обрабатываем детей в drop-zone
             const nestedChildren = Array.from(sourceDropZone.children);
             nestedChildren.forEach(nestedChild => {
@@ -315,8 +368,6 @@ function processNestedElements(sourceElement, targetElement, elementType) {
                     targetDropZone.appendChild(nestedConstructorElement);
                 }
             });
-        } else {
-            console.warn('Drop-zone not found for:', elementType, 'source:', sourceDropZone, 'target:', targetDropZone);
         }
     }
 }
