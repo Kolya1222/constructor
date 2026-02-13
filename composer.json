@@ -9,7 +9,7 @@
   "extra": {
       "laravel": {
           "providers": [
-              "roilafx\\constructor\\ConstructorServiceProvider"
+              "roilafx\\constructor\\constructorServiceProvider"
           ]
       }
   }
