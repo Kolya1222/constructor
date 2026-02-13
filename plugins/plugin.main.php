@@ -3,6 +3,7 @@ namespace roilafx\constructor;
 
 use Illuminate\Support\Facades\Event;
 use roilafx\constructor\Services\TVService;
+use roilafx\constructor\Services\ElementService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -21,24 +22,27 @@ Event::listen(['evolution.OnLoadSettings'], function() use ($modx) {
                 $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
                 $table->index('document_id');
             });
-            $modx->log(1, 'Builder table created successfully');
         }
     } catch (\Exception $e) {
-        $modx->log(1, 'Builder table creation error: ' . $e->getMessage());
+        \Log::info(1, 'Ошибка создания БД: ' . $e->getMessage());
     }
 });
 
 Event::listen(['evolution.OnDocFormRender'], function () use ($modx) { 
     try {
+        $elementService = new ElementService();
+        $repositories = $elementService->getRepositories();
         $tvService = new TVService();
         $documentId = $_GET['id'] ?? 0;
         $templateId = 0;
+        
         if ($documentId > 0) {
             $document = $modx->getDocument($documentId);
             $templateId = $document['template'] ?? 0;
         } else {
             $templateId = $_GET['template'] ?? 0;
         }
+        
         $templateTVs = $tvService->getTVsByTemplate($templateId);
         $tvCategories = $templateTVs->groupBy('category')->map(function($items, $category) {
             return [
@@ -47,7 +51,7 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
             ];
         })->values();
 
-        // Загружаем сохраненные данные из таблицы
+        // Загружаем сохраненные данные
         $savedData = null;
         if ($documentId > 0) {
             $savedRecord = DB::table('document_builder_data')
@@ -58,19 +62,24 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
                     'elements' => json_decode($savedRecord->content, true) ?? [],
                     'html' => $savedRecord->html_output ?? '',
                 ];
-                $modx->log(1, "Loaded builder data for document $documentId: " . count($savedData['elements']) . " elements");
             }
         }
+        
+        // Используем сервис для получения иконок
+        $elementIcons = $elementService->getElementIcons();
+        
         $renderedContent = view('constructor::bbevo', [
             'tvCategories' => $tvCategories,
-            'tvTypes' => $tvService->getTVTypes(),
             'savedData' => $savedData,
-            'documentId' => $documentId
+            'documentId' => $documentId,
+            'elementIcons' => $elementIcons,
+            'repositories' => $repositories
         ])->render();
+        
         $modx->regClientHTMLBlock("
             <div class='tab' id='tab'>
                 <div class='tab' id='startTab'>
-                    <h2 class='tab'>Конструктор</h2>
+                    <h2 class='tab'><i class='fa fa-building'></i>Конструктор</h2>
                     <script type='text/javascript'>tpSettings.addTabPage(document.getElementById('startTab'));</script>
                     <div class = 'buildcontainer' >
                         $renderedContent
@@ -79,7 +88,7 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
             </div>
         ");
     } catch (\Exception $e) {
-        $modx->log(1, 'TV Constructor Error: ' . $e->getMessage());
+        \Log::info(1, 'TV ошибка: ' . $e->getMessage());
     }
 });
 
@@ -87,56 +96,70 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
 Event::listen(['evolution.OnDocFormSave'], function($params) use ($modx) {
     try {
         $documentId = $params['id'];
+        
         // Проверяем, есть ли данные конструктора в POST
         if (isset($_POST['formbuilder']) && is_array($_POST['formbuilder'])) {
             $formData = $_POST['formbuilder'];
             $elements = [];
+            
             foreach ($formData as $container => $blocks) {
                 if ($container === 'workspace' && is_array($blocks)) {
                     foreach ($blocks as $index => $block) {
+                        $parentIndex = $block['parentIndex'] ?? null;
+                        if ($parentIndex === '') {
+                            $parentIndex = null;
+                        }
+                        // Если parentIndex строка, но содержит число
+                        elseif (is_string($parentIndex) && is_numeric($parentIndex)) {
+                            $parentIndex = (int)$parentIndex;
+                        }
+                        
                         $element = [
-                            'id' => $block['id'] ?? null,
+                            'id' => $block['id'] ?? '',
                             'type' => $block['type'] ?? '',
                             'config' => $block['config'] ?? '',
                             'values' => isset($block['values']) ? json_decode($block['values'], true) : [],
                             'visible' => $block['visible'] ?? 1,
                             'index' => $block['index'] ?? $index,
+                            'parentIndex' => $parentIndex,
                             'container' => $container
                         ];
                         $elements[] = $element;
                     }
                 }
             }
+            
             // Генерируем HTML
             $htmlOutput = $_POST['formbuilder_html'] ?? '';
+            
             // Сохраняем в базу данных
             $existingRecord = DB::table('document_builder_data')
                 ->where('document_id', $documentId)
                 ->first();
+                
             $data = [
                 'document_id' => $documentId,
-                'content' => json_encode($elements, JSON_UNESCAPED_UNICODE),
+                'content' => json_encode($elements, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
                 'html_output' => $htmlOutput,
                 'updated_at' => now()
             ];
+            
             if ($existingRecord) {
-                // Обновляем существующую запись
                 DB::table('document_builder_data')
                     ->where('document_id', $documentId)
                     ->update($data);
             } else {
-                // Создаем новую запись
                 $data['created_at'] = now();
                 DB::table('document_builder_data')
                     ->insert($data);
             }
-            $modx->log(1, "Builder data saved for document $documentId");
         } else {
+            // Если данных нет, удаляем запись
             DB::table('document_builder_data')
                 ->where('document_id', $documentId)
                 ->delete();
         }
     } catch (\Exception $e) {
-        $modx->log(1, 'Builder save error: ' . $e->getMessage());
+        \Log::info(1, 'Ошибка сохранения: ' . $e->getMessage());
     }
 });

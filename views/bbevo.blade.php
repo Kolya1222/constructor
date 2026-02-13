@@ -1,58 +1,34 @@
 @extends('constructor::layout')
 
 @section('body')
-    <link rel="stylesheet" href="{{ MODX_BASE_URL }}assets/plugins/constructor/css/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ MODX_BASE_URL }}assets/plugins/constructor/css/bbevo/main.css">
     <!-- Боковая панель элементов -->
     <div class="elements-sidebar">
         <div class="elements-icons">
             <!-- Иконки элементов -->
-            <div class="element-icon" draggable="true" data-type="text" title="Текстовый блок">
-                <i class="bi bi-text-paragraph"></i>
-                <span class="element-label">Текст</span>
-            </div>
-            <div class="element-icon" draggable="true" data-type="link" title="Ссылка">
-                <i class="bi bi-link-45deg"></i>
-                <span class="element-label">Ссылка</span>
-            </div>
-            <div class="element-icon" draggable="true" data-type="button" title="Кнопка">
-                <i class="bi bi-menu-button-wide-fill"></i>
-                <span class="element-label">Кнопка</span>
-            </div>
-            <div class="element-icon" draggable="true" data-type="image" title="Изображение">
-                <i class="bi bi-image"></i>
-                <span class="element-label">Изображение</span>
-            </div>
-            <div class="element-icon" draggable="true" data-type="row" title="Строка">
-                <i class="bi bi-layout-split"></i>
-                <span class="element-label">Строка</span>
-            </div>
-            <div class="element-icon" draggable="true" data-type="column" title="Колонка">
-                <i class="bi bi-layout-sidebar-inset"></i>
-                <span class="element-label">Колонка</span>
-            </div>
-            <!-- TV параметры -->
+            @include('constructor::partials.element-icons')
             <div class="elements-section">
                 <h6 class="section-title">TV параметры</h6>
                 <div class="tv-categories" id="tv-categories">
                     @foreach($tvCategories as $category)
-                    <div class="tv-category">
-                        <div class="category-header" data-bs-toggle="collapse" data-bs-target="#category-{{ md5($category['name']) }}">
-                            <i class="bi bi-folder"></i>
+                    <details class="tv-category" {{ $loop->first ? 'open' : '' }}>
+                        <summary class="category-header">
+                            <i class="fas fa-folder"></i>
                             {{ $category['name'] }}
                             <span class="badge bg-secondary">{{ count($category['tvs']) }}</span>
-                        </div>
-                        <div class="collapse show" id="category-{{ md5($category['name']) }}">
-                            <div class="tv-elements">
-                                @foreach($category['tvs'] as $tv)
-                                <div class="element-icon tv-element" draggable="true" data-type="tv" data-tv-id="{{ $tv['id'] }}" data-tv-name="{{ $tv['name'] }}" data-tv-type="{{ $tv['type'] }}" title="{{ $tv['description'] ?? $tv['caption'] }}">
-                                    <i class="bi bi-tag"></i>
-                                    <span class="element-label">{{ $tv['caption'] }}</span>
-                                </div>
-                                @endforeach
+                        </summary>
+                        <div class="tv-elements">
+                            @foreach($category['tvs'] as $tv)
+                            <div class="element-icon tv-element" draggable="true" data-type="tv" 
+                                data-tv-id="{{ $tv['id'] }}" 
+                                data-tv-name="{{ $tv['name'] }}" 
+                                data-tv-type="{{ $tv['type'] }}" 
+                                title="{{ $tv['description'] ?? $tv['caption'] }}">
+                                <i class="fas fa-tag"></i>
+                                <span class="element-label">{{ $tv['caption'] }}</span>
                             </div>
+                            @endforeach
                         </div>
-                    </div>
+                    </details>
                     @endforeach
                 </div>
             </div>
@@ -65,7 +41,7 @@
             <!-- Левая панель - рабочая область -->
             <div class="split-panel">
                 <div class="panel-header">
-                    <i class="bi bi-layout-wtf"></i>Рабочая область
+                    <i class="fas fa-pencil-ruler"></i>Рабочая область
                 </div>
                 <div class="workspace" id="workspace">
                     <!-- Здесь будут добавляться элементы -->
@@ -75,10 +51,10 @@
             <!-- Правая панель - предпросмотр -->
             <div class="split-panel">
                 <div class="panel-header">
-                    <i class="bi bi-eye"></i>Предпросмотр
+                    <i class="fas fa-eye"></i>Предпросмотр
                     <div class="ms-auto">
                         <button class="btn btn-sm btn-outline-secondary" id="copy-html" style="padding: 0;">
-                            <i class="bi bi-clipboard"></i> Копировать
+                            <i class="fas fa-clipboard"></i> Копировать
                         </button>
                     </div>
                 </div>
@@ -91,37 +67,103 @@
 
     <!-- Панель свойств -->
     <div class="properties-panel" id="properties-panel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="panel-title mb-0">
-                <i class="bi bi-sliders"></i>Свойства элемента
-            </h5>
-            <span class="badge bg-secondary" id="selected-element-type">Не выбран</span>
-        </div>
-        <div id="properties-form">
-            <p class="text-muted">Выберите элемент для редактирования</p>
+        <div class="properties-icons">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="panel-title mb-0">
+                    <i class="fas fa-sliders-h"></i>Свойства элемента
+                </h5>
+                <span class="badge bg-secondary" id="selected-element-type">Не выбран</span>
+            </div>
+            <div id="properties-form">
+                <p class="text-muted">Выберите элемент для редактирования</p>
+            </div>
         </div>
     </div>
     <!-- Контекстное меню -->
-    <div class="context-menu" id="context-menu">
-        <div class="context-menu-item" data-action="copy"><i class="bi bi-files"></i> Копировать</div>
-        <div class="context-menu-item" data-action="cut"><i class="bi bi-scissors"></i> Вырезать</div>
-        <div class="context-menu-item" data-action="paste"><i class="bi bi-clipboard"></i> Вставить</div>
-        <div class="context-menu-item" data-action="duplicate"><i class="bi bi-plus-square"></i> Дублировать</div>
-        <div class="context-menu-item" data-action="delete"><i class="bi bi-trash"></i> Удалить</div>
-        <hr class="my-1">
-        <div class="context-menu-item" data-action="move-up"><i class="bi bi-arrow-up"></i> Переместить выше</div>
-        <div class="context-menu-item" data-action="move-down"><i class="bi bi-arrow-down"></i> Переместить ниже</div>
-    </div>
+    @include('constructor::partials.context-menu')
     <div id="formbuilder-hidden-fields"></div>
-    <script>
-        // Передаем данные из PHP в JavaScript
-        window.formBuilderData = {
-            savedData: @json($savedData ?? null),
-            documentId: {{ $documentId ?? 0 }},
-            baseUrl: "{{ MODX_BASE_URL }}"
-        };
-    </script>
 
-    <script type="module" src="{{ MODX_BASE_URL }}assets/plugins/constructor/js/bbevo/main.js"></script>
-    <script src="{{ MODX_BASE_URL }}assets/plugins/constructor/js/bootstrap.bundle.min.js"></script>
+    <!-- Модальное окно библиотеки блоков -->
+    <div class="modal fade" id="libraryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-book"></i> Библиотека готовых блоков
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="library-container">
+                        <!-- Вкладки с репозиториями -->
+                        <ul class="nav nav-tabs mb-3" id="libraryTabs" role="tablist">
+                            @foreach($repositories as $index => $repo)
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {{ $index === 0 ? 'active' : '' }}" 
+                                        id="repo-{{ $repo['id'] }}-tab" 
+                                        data-bs-toggle="tab" 
+                                        data-bs-target="#repo-{{ $repo['id'] }}" 
+                                        type="button" 
+                                        role="tab">
+                                    <i class="fab fa-github"></i> {{ $repo['name'] }}
+                                </button>
+                            </li>
+                            @endforeach
+                        </ul>
+                        
+                        <!-- Содержимое вкладок -->
+                        <div class="tab-content" id="libraryTabsContent">
+                            @foreach($repositories as $index => $repo)
+                            <div class="tab-pane fade {{ $index === 0 ? 'show active' : '' }}" 
+                                id="repo-{{ $repo['id'] }}" 
+                                role="tabpanel"
+                                data-repo-url="{{ $repo['url'] }}">
+                                <div class="library-browser">
+                                    <div class="library-sidebar">
+                                        <div class="library-categories">
+                                            <h6>Категории</h6>
+                                            <div class="category-list" data-repo="{{ $repo['id'] }}">
+                                                <div class="category-item" data-path="pages">
+                                                    <i class="fas fa-folder"></i> Страницы
+                                                </div>
+                                                <div class="category-item" data-path="sections">
+                                                    <i class="fas fa-folder"></i> Секции
+                                                </div>
+                                                <div class="category-item" data-path="blocks">
+                                                    <i class="fas fa-folder"></i> Блоки
+                                                </div>
+                                                <div class="category-item" data-path="headers">
+                                                    <i class="fas fa-folder"></i> Шапки
+                                                </div>
+                                                <div class="category-item" data-path="footers">
+                                                    <i class="fas fa-folder"></i> Подвалы
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="library-content">
+                                        <div class="library-search">
+                                            <input type="text" class="form-control" placeholder="Поиск блоков...">
+                                        </div>
+                                        <div class="library-grid" id="library-grid-{{ $repo['id'] }}">
+                                            <div class="text-center p-5">
+                                                <div class="spinner-border" role="status">
+                                                    <span class="visually-hidden">Загрузка...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection

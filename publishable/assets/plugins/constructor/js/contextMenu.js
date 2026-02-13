@@ -8,7 +8,7 @@ export function initContextMenu(contextMenu) {
     contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
         item.addEventListener('click', function() {
             const action = this.getAttribute('data-action');
-            const selectedElement = window.constructorApp.getSelectedElement(); // Выносим объявление на уровень выше
+            const selectedElement = window.constructorApp.getSelectedElement();
             
             switch (action) {
                 case 'copy':
@@ -52,17 +52,33 @@ export function initContextMenu(contextMenu) {
 
 export function showContextMenu(e, contextMenu) {
     e.preventDefault();
-    
-    // Позиционируем меню
-    contextMenu.style.display = 'block';
-    contextMenu.style.left = `${e.pageX}px`;
-    contextMenu.style.top = `${e.pageY}px`;
-    
-    // Выбираем элемент, на котором вызвали меню
     const targetElement = e.target.closest('.constructor-element');
     if (targetElement) {
         window.constructorApp.setSelectedElement(targetElement);
     }
+
+    let mouseX = e.clientX;
+    let mouseY = e.clientY;
+
+    const menuWidth = contextMenu.offsetWidth || 200;
+    const menuHeight = contextMenu.offsetHeight || 200;
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    if (mouseX + menuWidth > windowWidth - 10) {
+        mouseX = windowWidth - menuWidth - 10;
+    }
+
+    if (mouseY + menuHeight > windowHeight - 10) {
+        mouseY = windowHeight - menuHeight - 10;
+    }
+
+    mouseX = Math.max(10, mouseX);
+    mouseY = Math.max(10, mouseY);
+
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = mouseX + 'px';
+    contextMenu.style.top = mouseY + 'px';
 }
 
 export function hideContextMenu(contextMenu) {
