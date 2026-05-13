@@ -48,13 +48,25 @@ function loadFromStructuredData(elements, workspace) {
     const childrenMap = new Map();
 
     elements.forEach(el => {
-        const parentIdx = (el.parentIndex !== null && el.parentIndex !== undefined) ? String(el.parentIndex) : null;
+        let parentIdx = el.parentIndex;
+        if (parentIdx === null || parentIdx === undefined || parentIdx === '' || parentIdx === 'null') {
+            parentIdx = null;
+        } else {
+            parentIdx = String(parentIdx);
+        }
+
+        const values = el.values || {};
+        if (!values.attributes || typeof values.attributes !== 'object' || Array.isArray(values.attributes)) {
+            values.attributes = {};
+        }
+
         const normalized = {
             ...el,
             index: String(el.index),
             parentIndex: parentIdx,
-            values: el.values || {}
+            values: values
         };
+
         if (!childrenMap.has(parentIdx)) childrenMap.set(parentIdx, []);
         childrenMap.get(parentIdx).push(normalized);
         elementsMap.set(String(el.index), normalized);
