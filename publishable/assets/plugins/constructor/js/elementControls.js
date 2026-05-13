@@ -1,12 +1,8 @@
 import { initRichTextEditor, destroyRichTextEditor } from './richTextEditor.js';
 import { invalidateElementCache } from './cache.js';
 
-export function initElementControls() {
-    document.querySelectorAll('.constructor-element').forEach(addElementControls);
-}
-
 export function addElementControls(element) {
-    if (element.querySelector('.quick-format')) return;
+    if (!element || element.querySelector('.quick-format')) return;
     
     if (element.dataset.type === 'content') {
         const formatBar = document.createElement('div');
@@ -27,35 +23,27 @@ export function addElementControls(element) {
             e.stopPropagation();
             initRichTextEditor(element);
         });
-        
-        // Обработчик для жирного текста
+
         formatBar.querySelector('[data-format="bold"]').addEventListener('click', (e) => {
             e.stopPropagation();
             const contentDiv = element.querySelector('.element-content');
             const contentHolder = contentDiv?.querySelector('.content-holder') || contentDiv?.firstElementChild;
-            invalidateElementCache(element);
             if (contentHolder) {
-                if (contentHolder.style.fontWeight === 'bold') {
-                    contentHolder.style.fontWeight = 'normal';
-                } else {
-                    contentHolder.style.fontWeight = 'bold';
-                }
+                const isBold = contentHolder.style.fontWeight === 'bold';
+                contentHolder.style.fontWeight = isBold ? 'normal' : 'bold';
+                invalidateElementCache(element);
                 window.constructorApp.updateHtmlOutput();
             }
         });
-        
-        // Обработчик для курсива
+
         formatBar.querySelector('[data-format="italic"]').addEventListener('click', (e) => {
             e.stopPropagation();
             const contentDiv = element.querySelector('.element-content');
             const contentHolder = contentDiv?.querySelector('.content-holder') || contentDiv?.firstElementChild;
-            invalidateElementCache(element);
             if (contentHolder) {
-                if (contentHolder.style.fontStyle === 'italic') {
-                    contentHolder.style.fontStyle = 'normal';
-                } else {
-                    contentHolder.style.fontStyle = 'italic';
-                }
+                const isItalic = contentHolder.style.fontStyle === 'italic';
+                contentHolder.style.fontStyle = isItalic ? 'normal' : 'italic';
+                invalidateElementCache(element);
                 window.constructorApp.updateHtmlOutput();
             }
         });
@@ -66,8 +54,10 @@ export function addElementControls(element) {
 
 export function destroyElementControls(element) {
     const formatBar = element.querySelector('.quick-format');
-    if (formatBar) {
-        formatBar.remove();
-    }
+    if (formatBar) formatBar.remove();
     destroyRichTextEditor(element);
+}
+
+export function initAllElementsControls() {
+    document.querySelectorAll('.constructor-element').forEach(addElementControls);
 }
