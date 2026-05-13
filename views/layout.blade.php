@@ -9,4 +9,5 @@
         baseUrl: "{{ MODX_BASE_URL }}"
     };
 </script>
+<script src="{{ MODX_BASE_URL }}assets/plugins/constructor/js/purify.min.js"></script>
 <script type="module" src="{{ MODX_BASE_URL }}assets/plugins/constructor/js/main.js"></script>
