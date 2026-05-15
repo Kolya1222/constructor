@@ -1,5 +1,4 @@
 import { initDraggableElement } from './dragAndDrop.js';
-import { addElementControls } from './elementControls.js';
 
 function sanitizeCSS(cssText) {
     return cssText
@@ -12,6 +11,10 @@ function sanitizeCSS(cssText) {
 }
 
 function sanitizeHTML(dirtyHTML) {
+    if (typeof DOMPurify === 'undefined') {
+        console.error('DOMPurify не загружен. HTML-контент не будет очищен!');
+        return dirtyHTML || '';
+    }
     return DOMPurify.sanitize(dirtyHTML);
 }
 
@@ -27,8 +30,13 @@ export function createElement(type, elementData = {}) {
     if (elementData.styles) {
         element.style.cssText = sanitizeCSS(elementData.styles);
     }
-    if (elementData.classes && elementData.classes !== 'constructor-element') {
-        element.className = elementData.classes;
+    if (elementData.classes) {
+        const userClasses = elementData.classes
+            .split(/\s+/)
+            .filter(c => c && c !== 'constructor-element');
+        if (userClasses.length > 0) {
+            element.classList.add(...userClasses);
+        }
     }
     if (elementData.attributes) {
         Object.entries(elementData.attributes).forEach(([key, value]) => {
@@ -45,12 +53,15 @@ export function createElement(type, elementData = {}) {
         case 'content': {
             const contentHolder = document.createElement('div');
             contentHolder.className = 'content-holder';
-            const safeContent = sanitizeHTML(
-                elementData.content || '<p>Нажмите кнопку редактирования для добавления контента</p>'
-            );
-            contentHolder.innerHTML = safeContent;
-            if (elementData.innerStyles) contentHolder.style.cssText = sanitizeCSS(elementData.innerStyles);
-            if (elementData.innerClasses) contentHolder.className += ' ' + elementData.innerClasses;
+            const rawContent = elementData.content ||
+                '<p>Нажмите кнопку редактирования для добавления контента</p>';
+            contentHolder.innerHTML = sanitizeHTML(rawContent);
+            if (elementData.innerStyles) {
+                contentHolder.style.cssText = sanitizeCSS(elementData.innerStyles);
+            }
+            if (elementData.innerClasses) {
+                contentHolder.classList.add(...elementData.innerClasses.split(/\s+/).filter(Boolean));
+            }
             contentDiv.appendChild(contentHolder);
             handleIcon = 'fas fa-file-alt';
             label = 'Контент';
@@ -63,7 +74,7 @@ export function createElement(type, elementData = {}) {
             if (elementData.target) link.target = elementData.target;
             if (elementData.rel) link.rel = elementData.rel;
             if (elementData.innerStyles) link.style.cssText = sanitizeCSS(elementData.innerStyles);
-            if (elementData.innerClasses) link.className = elementData.innerClasses;
+            if (elementData.innerClasses) link.classList.add(...elementData.innerClasses.split(/\s+/).filter(Boolean));
             contentDiv.appendChild(link);
             handleIcon = 'fas fa-link';
             label = 'Ссылка';
@@ -73,7 +84,7 @@ export function createElement(type, elementData = {}) {
             const button = document.createElement('button');
             button.textContent = elementData.content || 'Кнопка';
             if (elementData.innerStyles) button.style.cssText = sanitizeCSS(elementData.innerStyles);
-            if (elementData.innerClasses) button.className = elementData.innerClasses;
+            if (elementData.innerClasses) button.classList.add(...elementData.innerClasses.split(/\s+/).filter(Boolean));
             if (elementData.buttonType) button.type = elementData.buttonType;
             if (elementData.disabled) button.disabled = true;
             contentDiv.appendChild(button);
@@ -88,7 +99,9 @@ export function createElement(type, elementData = {}) {
             dropZone.style.flexDirection = type === 'row' ? 'row' : 'column';
             dropZone.style.gap = '16px';
             dropZone.style.padding = '12px';
-            if (elementData.dropZoneClasses) dropZone.className = elementData.dropZoneClasses + ' drop-zone';
+            if (elementData.dropZoneClasses) {
+                dropZone.classList.add(...elementData.dropZoneClasses.split(/\s+/).filter(c => c !== 'drop-zone'));
+            }
             if (elementData.dropZoneStyles) {
                 dropZone.style.cssText = sanitizeCSS(elementData.dropZoneStyles);
             }
@@ -99,20 +112,25 @@ export function createElement(type, elementData = {}) {
         case 'tv': {
             const tvName = elementData.tvName || 'tv_field';
             const tvType = elementData.tvType || 'text';
+            const baseUrl = window.formBuilderData?.baseUrl || '';
+
             if (tvType === 'image') {
                 const tvImage = document.createElement('img');
                 let imgSrc = elementData.content || `{{$documentObject['${tvName}']}}`;
-                const isSafeSrc = /^(https?:|data:image\/|\/|\{\{)/i.test(imgSrc);
-                if (!isSafeSrc && imgSrc.startsWith('data:')) {
-                    imgSrc = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>';
-                } else if (!isSafeSrc) {
-                    imgSrc = window.formBuilderData?.baseUrl + imgSrc;
+                const isAbsoluteUrl = /^(https?:|data:image\/|\/|\{\{)/i.test(imgSrc);
+                if (!isAbsoluteUrl) {
+                    imgSrc = baseUrl + imgSrc.replace(/^\//, '');
+                } else if (imgSrc.startsWith('data:') && !imgSrc.startsWith('data:image/')) {
+                    imgSrc = 'data:image/svg+xml,' + encodeURIComponent(
+                        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100%" height="100%" fill="#ccc"/></svg>'
+                    );
                 }
+
                 tvImage.setAttribute('src', imgSrc);
                 tvImage.setAttribute('alt', elementData.alt || tvName);
                 tvImage.style.maxWidth = '100%';
                 if (elementData.targetStyles) tvImage.style.cssText = sanitizeCSS(elementData.targetStyles);
-                if (elementData.targetClasses) tvImage.className = elementData.targetClasses;
+                if (elementData.targetClasses) tvImage.classList.add(...elementData.targetClasses.split(/\s+/).filter(Boolean));
                 contentDiv.appendChild(tvImage);
                 label = `TV Image ${tvName}`;
             } else if (tvType === 'file' || tvType === 'url' || tvType === 'email') {
@@ -124,7 +142,7 @@ export function createElement(type, elementData = {}) {
                 tvLink.textContent = elementData.content || (tvType === 'file' ? `Скачать ${tvName}` : tvName);
                 tvLink.target = '_blank';
                 if (elementData.targetStyles) tvLink.style.cssText = sanitizeCSS(elementData.targetStyles);
-                if (elementData.targetClasses) tvLink.className = elementData.targetClasses;
+                if (elementData.targetClasses) tvLink.classList.add(...elementData.targetClasses.split(/\s+/).filter(Boolean));
                 contentDiv.appendChild(tvLink);
                 label = tvType === 'file' ? `TV File ${tvName}` : `TV Link ${tvName}`;
             } else if (tvType === 'checkbox') {
@@ -143,7 +161,7 @@ export function createElement(type, elementData = {}) {
                 const tvText = document.createElement('span');
                 tvText.textContent = elementData.content || `{{$documentObject['${tvName}']}}`;
                 if (elementData.targetStyles) tvText.style.cssText = sanitizeCSS(elementData.targetStyles);
-                if (elementData.targetClasses) tvText.className = elementData.targetClasses;
+                if (elementData.targetClasses) tvText.classList.add(...elementData.targetClasses.split(/\s+/).filter(Boolean));
                 contentDiv.appendChild(tvText);
                 label = `TV поле ${tvName}`;
             }
@@ -152,6 +170,13 @@ export function createElement(type, elementData = {}) {
             if (elementData.tvName) element.setAttribute('data-tv-name', elementData.tvName);
             handleIcon = 'fas fa-tag';
             break;
+        }
+        default: {
+            console.warn(`Неизвестный тип элемента: ${type}`);
+            const placeholder = document.createElement('div');
+            placeholder.textContent = `Неизвестный тип: ${type}`;
+            placeholder.style.color = 'red';
+            contentDiv.appendChild(placeholder);
         }
     }
 
@@ -168,7 +193,7 @@ export function createElement(type, elementData = {}) {
     handle.appendChild(gripIcon);
     element.appendChild(handle);
     element.appendChild(contentDiv);
+
     initDraggableElement(element);
-    addElementControls(element);
     return element;
 }

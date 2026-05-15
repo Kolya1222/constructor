@@ -354,27 +354,30 @@ function insertLibraryBlock(blockData) {
             }
             return el;
         });
-        
-        const reindexedElements = reindexElements(cleanElements);
 
-        if (window.constructorApp && typeof window.constructorApp.loadFromStructuredData === 'function') {
-            window.constructorApp.loadFromStructuredData(reindexedElements, workspace);
+        const reindexed = reindexElements(cleanElements);
+
+        if (window.constructorApp && typeof window.constructorApp.appendStructuredData === 'function') {
+            window.constructorApp.appendStructuredData(reindexed, workspace);
         } else {
-            console.error('Не найдена функция loadFromStructuredData');
+            console.error('Не найдена функция appendStructuredData');
             showNotification('Ошибка: не удалось вставить блок', 'error');
             return;
         }
         
         closeLibraryModal();
-        
+
         if (window.constructorApp && window.constructorApp.updateHtmlOutput) {
-            setTimeout(() => window.constructorApp.updateHtmlOutput(), 100);
+            window.constructorApp.updateHtmlOutput();
+        }
+        if (window.constructorApp && window.constructorApp.reinitializeEvents) {
+            window.constructorApp.reinitializeEvents();
         }
     } catch (e) {
         console.error('Ошибка при вставке блока:', e);
         showNotification('Ошибка при вставке блока', 'error');
     }
-};
+}
 
 function reindexElements(elements) {
     if (!elements || !Array.isArray(elements)) return elements;

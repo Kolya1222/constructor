@@ -12,7 +12,7 @@ import {
     duplicateSelectedElement
 } from './actions.js';
 import { createElement } from './elementCreation.js';
-import { destroyRichTextEditor } from './richTextEditor.js';
+import { initRichTextEditor, destroyRichTextEditor } from './richTextEditor.js';
 import { initLibrary } from './library.js';
 import {
     valuesCache,
@@ -20,31 +20,47 @@ import {
     invalidateElementCache
 } from './cache.js';
 
-function loadSavedElements() {
-    const savedData = window.formBuilderData?.savedData;
-    if (!savedData || !Array.isArray(savedData.elements)) {
-        console.warn('Нет сохранённых данных или неверный формат');
-        return;
-    }
-    const workspace = document.getElementById('workspace');
-    if (!workspace) return;
-
-    loadFromStructuredData(savedData.elements, workspace);
-
-    const htmlOutput = document.getElementById('html-output');
-    if (htmlOutput && savedData.html) {
-        htmlOutput.textContent = savedData.html;
-    }
-    requestAnimationFrame(() => reinitializeEvents());
+function sanitizeStyle(cssText) {
+    return cssText
+        .replace(/expression\s*\(/gi, '')
+        .replace(/javascript\s*:/gi, '')
+        .replace(/-moz-binding/gi, '')
+        .replace(/behavior\s*:/gi, '')
+        .replace(/@import/gi, '')
+        .replace(/url\s*\(\s*["']?\s*javascript\s*:/gi, 'url(');
 }
 
-function loadFromStructuredData(elements, workspace) {
-    if (typeof clearAllCache === 'function') {
-        clearAllCache();
-    }
-    workspace.innerHTML = '';
+function escapeHTML(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
-    const elementsMap = new Map();
+function cleanClasses(className) {
+    const systemClasses = [
+        'constructor-element', 'selected', 'dragging',
+        'drag-over', 'drag-over-top', 'drag-over-bottom',
+        'drag-over-left', 'drag-over-right', 'editing', 'editing-text',
+        'content-holder', 'drop-zone', 'active'
+    ];
+    return className
+        .split(/\s+/)
+        .filter(cls => cls && !systemClasses.includes(cls))
+        .join(' ');
+}
+
+/**
+ * Общая функция построения DOM из массива элементов с иерархией.
+ * @param {Array} elements – плоский массив элементов с полями index, parentIndex, type, values.
+ * @param {HTMLElement} container – корневой контейнер, куда добавлять элементы.
+ * @param {boolean} clearContainer – нужно ли очистить контейнер перед вставкой.
+ */
+function buildFromStructuredData(elements, container, clearContainer = false) {
+    if (clearContainer) {
+        container.innerHTML = '';
+        if (typeof clearAllCache === 'function') {
+            clearAllCache();
+        }
+    }
+
     const childrenMap = new Map();
 
     elements.forEach(el => {
@@ -69,10 +85,9 @@ function loadFromStructuredData(elements, workspace) {
 
         if (!childrenMap.has(parentIdx)) childrenMap.set(parentIdx, []);
         childrenMap.get(parentIdx).push(normalized);
-        elementsMap.set(String(el.index), normalized);
     });
 
-    for (let [_, children] of childrenMap.entries()) {
+    for (const children of childrenMap.values()) {
         children.sort((a, b) => {
             const aIdx = parseInt(a.index, 10);
             const bIdx = parseInt(b.index, 10);
@@ -81,11 +96,11 @@ function loadFromStructuredData(elements, workspace) {
         });
     }
 
-    function buildDom(parentIndex = null, parentContainer = workspace) {
+    function buildDom(parentIndex = null, parentContainer = container) {
         const children = childrenMap.get(parentIndex) || [];
         for (const elementData of children) {
             const values = elementData.values || {};
-            let domElement = null;
+            let domElement;
             try {
                 domElement = createElement(elementData.type, values);
             } catch (err) {
@@ -93,12 +108,9 @@ function loadFromStructuredData(elements, workspace) {
                 continue;
             }
             if (!domElement) continue;
+
             if (elementData.id) domElement.dataset.id = elementData.id;
-            if (values.styles) {
-                domElement.style.cssText = sanitizeStyle(values.styles);
-            }
             if (elementData.index) domElement.dataset.index = String(elementData.index);
-            if (values.classes) domElement.className = values.classes;
 
             parentContainer.appendChild(domElement);
 
@@ -111,25 +123,40 @@ function loadFromStructuredData(elements, workspace) {
             }
             if (dropZone) {
                 buildDom(elementData.index, dropZone);
-            } else {
-                if (childrenMap.has(elementData.index) && childrenMap.get(elementData.index).length > 0) {
-                    console.warn(`Элемент ${elementData.index} не имеет drop-zone, но есть дети. Дети потеряны.`);
-                }
+            } else if (childrenMap.has(elementData.index) && childrenMap.get(elementData.index).length > 0) {
+                console.warn(`Элемент ${elementData.index} не имеет drop-zone, но есть дети. Дети потеряны.`);
             }
         }
     }
 
-    buildDom(null, workspace);
+    buildDom(null, container);
 }
 
-function sanitizeStyle(cssText) {
-    return cssText
-        .replace(/expression\s*\(/gi, '')
-        .replace(/javascript\s*:/gi, '')
-        .replace(/-moz-binding/gi, '')
-        .replace(/behavior\s*:/gi, '')
-        .replace(/@import/gi, '')
-        .replace(/url\s*\(\s*["']?\s*javascript\s*:/gi, 'url(');
+function loadFromStructuredData(elements, workspace) {
+    buildFromStructuredData(elements, workspace, true);
+}
+
+function appendStructuredData(elements, container) {
+    buildFromStructuredData(elements, container, false);
+}
+
+
+function loadSavedElements() {
+    const savedData = window.formBuilderData?.savedData;
+    if (!savedData || !Array.isArray(savedData.elements)) {
+        console.warn('Нет сохранённых данных или неверный формат');
+        return;
+    }
+    const workspace = document.getElementById('workspace');
+    if (!workspace) return;
+
+    loadFromStructuredData(savedData.elements, workspace);
+
+    const htmlOutput = document.getElementById('html-output');
+    if (htmlOutput && savedData.html) {
+        htmlOutput.textContent = savedData.html;
+    }
+    requestAnimationFrame(() => reinitializeEvents());
 }
 
 function reinitializeEvents() {
@@ -144,39 +171,74 @@ function reinitializeEvents() {
 }
 
 function handleTextDblClick(e) {
-    if (e.target.closest('.quick-format, textarea, input, button, [contenteditable="true"]')) return;
+    if (e.target.closest('textarea, input, button, [contenteditable="true"]')) return;
 
     e.stopPropagation();
     const contentDiv = this;
     const element = contentDiv.closest('.constructor-element');
-    if (element) invalidateElementCache(element);
+    if (!element) return;
+
+    if (typeof tinymce !== 'undefined') {
+        initRichTextEditor(element);
+        return;
+    }
+
+    if (element.classList.contains('editing-text')) return;
+    element.classList.add('editing-text');
+
+    invalidateElementCache(element);
+
     const innerElement = contentDiv.firstElementChild;
     if (!innerElement) return;
+
     const currentText = innerElement.textContent;
     const currentTag = innerElement.tagName.toLowerCase();
     const savedStyles = innerElement.style.cssText;
     const savedClasses = innerElement.className;
-    contentDiv.innerHTML = '';
-    const textarea = document.createElement('textarea');
-    textarea.className = 'form-control';
-    textarea.textContent = currentText;
-    contentDiv.appendChild(textarea);
+
+    const originalHTML = contentDiv.innerHTML;
+
+    contentDiv.innerHTML = `
+        <textarea class="form-control inline-textarea">${escapeHTML(currentText)}</textarea>
+        <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-sm btn-primary save-text">Сохранить</button>
+            <button class="btn btn-sm btn-outline-secondary cancel-text">Отмена</button>
+        </div>
+    `;
+    const textarea = contentDiv.querySelector('textarea');
     textarea.focus();
-    textarea.addEventListener('blur', function onBlur() {
+
+    const saveBtn = contentDiv.querySelector('.save-text');
+    const cancelBtn = contentDiv.querySelector('.cancel-text');
+
+    function save() {
+        const newText = textarea.value;
         const newElement = document.createElement(currentTag);
-        newElement.textContent = this.value;
+        newElement.textContent = newText;
         if (savedStyles) newElement.style.cssText = savedStyles;
         if (savedClasses) newElement.className = savedClasses;
         contentDiv.innerHTML = '';
         contentDiv.appendChild(newElement);
-        if (element) invalidateElementCache(element);
+        element.classList.remove('editing-text');
+        invalidateElementCache(element);
         window.constructorApp.updateHtmlOutput();
-        this.removeEventListener('blur', onBlur);
-    });
+    }
+
+    function cancel() {
+        contentDiv.innerHTML = originalHTML;
+        element.classList.remove('editing-text');
+    }
+
+    saveBtn.addEventListener('click', save);
+    cancelBtn.addEventListener('click', cancel);
+
     textarea.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
-            this.blur();
+            save();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancel();
         }
     });
 }
@@ -191,6 +253,12 @@ function prepareFormBuilderData() {
 
     document.querySelectorAll('.constructor-element[data-type="content"]').forEach(element => {
         destroyRichTextEditor(element);
+    });
+
+    document.querySelectorAll('.constructor-element').forEach(el => {
+        el.classList.remove('dragging', 'drag-over', 'drag-over-top', 'drag-over-bottom', 'drag-over-left', 'drag-over-right');
+        el.style.opacity = '';
+        el.style.transition = '';
     });
 
     const containerId = 'formbuilder-data-container';
@@ -246,7 +314,9 @@ function collectElementsWithHierarchy(workspace) {
     let globalIndex = 0;
     while (queue.length > 0) {
         const { container, parentIdx } = queue.shift();
-        const elements = container.querySelectorAll(':scope > .constructor-element');
+        const elements = Array.from(container.children).filter(el =>
+            el.classList.contains('constructor-element')
+        );
         elements.forEach(element => {
             const currentIndex = globalIndex++;
             const elementData = {
@@ -259,13 +329,9 @@ function collectElementsWithHierarchy(workspace) {
                 parentIndex: parentIdx
             };
             elementsData.push(elementData);
-            const contentEl = element.querySelector(':scope > .element-content');
-            let dropZone = null;
-            if (contentEl) {
-                dropZone = contentEl.querySelector(':scope > .drop-zone');
-            } else {
-                dropZone = element.querySelector(':scope > .drop-zone');
-            }
+
+            const dropZone = element.querySelector(':scope > .drop-zone') ||
+                             element.querySelector('.drop-zone');
             if (dropZone) {
                 queue.push({ container: dropZone, parentIdx: currentIndex });
             }
@@ -281,50 +347,51 @@ function getElementValues(element) {
     const values = {};
     const type = element.dataset.type;
     values.styles = element.style.cssText;
-    values.classes = element.className;
+    values.classes = cleanClasses(element.className);
     values.attributes = {};
     Array.from(element.attributes).forEach(attr => {
         if (attr.name.startsWith('data-') && attr.name !== 'data-type') {
             values.attributes[attr.name] = attr.value;
         }
     });
+
     switch (type) {
-        case 'content':
+        case 'content': {
             const contentDiv = element.querySelector('.element-content');
             if (contentDiv) {
                 const contentHolder = contentDiv.querySelector('.content-holder') || contentDiv.firstElementChild;
                 if (contentHolder) {
                     values.content = contentHolder.innerHTML || '';
                     values.innerStyles = contentHolder.style.cssText;
-                    values.innerClasses = contentHolder.className;
+                    values.innerClasses = cleanClasses(contentHolder.className);
                 }
             }
             break;
-
-        case 'link':
+        }
+        case 'link': {
             const link = element.querySelector('a');
             if (link) {
                 values.href = link.href;
                 values.target = link.target;
                 values.rel = link.rel;
                 values.innerStyles = link.style.cssText;
-                values.innerClasses = link.className;
+                values.innerClasses = cleanClasses(link.className);
                 values.content = link.textContent || '';
             }
             break;
-
-        case 'button':
+        }
+        case 'button': {
             const button = element.querySelector('button');
             if (button) {
                 values.content = button.textContent || '';
                 values.innerStyles = button.style.cssText;
-                values.innerClasses = button.className;
+                values.innerClasses = cleanClasses(button.className);
                 values.buttonType = button.type;
                 values.disabled = button.disabled;
             }
             break;
-
-        case 'tv':
+        }
+        case 'tv': {
             if (element.dataset.tvId) values.tvId = element.dataset.tvId;
             if (element.dataset.tvName) values.tvName = element.dataset.tvName;
             if (element.dataset.tvType) values.tvType = element.dataset.tvType;
@@ -342,24 +409,25 @@ function getElementValues(element) {
                         values.content = srcAttr;
                         values.alt = tvElement.getAttribute('alt') || '';
                         values.targetStyles = tvElement.style.cssText;
-                        values.targetClasses = tvElement.className;
+                        values.targetClasses = cleanClasses(tvElement.className);
                     } else {
                         values.content = tvElement.textContent || '';
                         values.targetStyles = tvElement.style.cssText;
-                        values.targetClasses = tvElement.className;
+                        values.targetClasses = cleanClasses(tvElement.className);
                     }
                 }
             }
             break;
-
+        }
         case 'column':
-        case 'row':
+        case 'row': {
             const dropZone = element.querySelector('.drop-zone');
             if (dropZone) {
-                values.dropZoneClasses = dropZone.className;
+                values.dropZoneClasses = cleanClasses(dropZone.className);
                 values.dropZoneStyles = dropZone.style.cssText;
             }
             break;
+        }
     }
     valuesCache.set(element, values);
     return values;
@@ -373,12 +441,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const copyHtmlBtn = document.getElementById('copy-html');
     const contextMenu = document.getElementById('context-menu');
     const propertiesForm = document.getElementById('properties-form');
+
     if (propertiesForm) {
         propertiesForm.addEventListener('submit', (e) => e.preventDefault());
         initPropertiesPanel();
     }
+
     let selectedElement = null;
     let copiedElement = null;
+
     const setSelectedElement = (element) => {
         if (selectedElement) selectedElement.classList.remove('selected');
         selectedElement = element;
@@ -388,6 +459,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         updatePropertiesPanel();
     };
+
     const removeSelected = () => {
         if (selectedElement?.parentNode) {
             selectedElement.parentNode.removeChild(selectedElement);
@@ -396,6 +468,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updatePropertiesPanel();
         }
     };
+
     window.constructorApp = {
         workspace,
         selectedElement,
@@ -409,8 +482,9 @@ document.addEventListener('DOMContentLoaded', function () {
         removeSelectedElement: removeSelected,
         duplicateSelectedElement: duplicateSelectedElement,
         loadSavedElements,
-        loadFromStructuredData: loadFromStructuredData,
-        reinitializeEvents: reinitializeEvents,
+        loadFromStructuredData,
+        appendStructuredData: (elements, container) => appendStructuredData(elements, container),
+        reinitializeEvents,
         lockPropertiesPanel: function (locked) {
             const panel = document.getElementById('properties-form');
             if (panel) {
@@ -419,15 +493,18 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     };
+
     loadSavedElements();
     initDragAndDrop(workspace);
     updateHtmlOutput(workspace, htmlOutput);
     initContextMenu(contextMenu);
     reinitializeEvents();
     initLibrary();
+
     if (copyHtmlBtn) copyHtmlBtn.addEventListener('click', copyHtmlToClipboard);
     if (removeElementBtn) removeElementBtn.addEventListener('click', removeSelectedElement);
     if (duplicateElementBtn) duplicateElementBtn.addEventListener('click', duplicateSelectedElement);
+
     document.addEventListener('contextmenu', function (e) {
         if (e.target.closest('.constructor-element, .workspace')) {
             e.preventDefault();
@@ -435,6 +512,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
     document.addEventListener('click', () => hideContextMenu(contextMenu));
+
     const docForm = document.querySelector('form[action*="index.php"]');
     if (docForm) docForm.addEventListener('submit', () => prepareFormBuilderData());
+
+    const clearWorkspaceBtn = document.getElementById('clear-workspace');
+    if (clearWorkspaceBtn) {
+        clearWorkspaceBtn.addEventListener('click', () => {
+            if (confirm('Удалить все элементы из рабочей области?')) {
+                workspace.innerHTML = '';
+                clearAllCache();
+                window.constructorApp.updateHtmlOutput();
+                updatePropertiesPanel();
+                window.constructorApp.setSelectedElement(null);
+            }
+        });
+    }
 });

@@ -1,20 +1,20 @@
-import { 
-    removeSelectedElement, 
-    duplicateSelectedElement 
+import {
+    removeSelectedElement,
+    duplicateSelectedElement
 } from './actions.js';
-import { addElementControls } from './elementControls.js';
 import { invalidateElementCache } from './cache.js';
 import { createElement } from './elementCreation.js';
 import { initDraggableElement } from './dragAndDrop.js';
+import { copyStyles, applyStyles } from './styleClipboard.js';
 
 export function initContextMenu(contextMenu) {
     contextMenu.addEventListener('click', (e) => {
         const menuItem = e.target.closest('.context-menu-item');
         if (!menuItem) return;
-        
+
         const action = menuItem.getAttribute('data-action');
         const selectedElement = window.constructorApp.getSelectedElement();
-        
+
         switch (action) {
             case 'copy':
                 if (selectedElement) {
@@ -22,7 +22,7 @@ export function initContextMenu(contextMenu) {
                     window.constructorApp.setCopiedElement(createElement(selectedElement.dataset.type, values));
                 }
                 break;
-                
+
             case 'cut':
                 if (selectedElement) {
                     const values = collectElementValues(selectedElement);
@@ -30,7 +30,7 @@ export function initContextMenu(contextMenu) {
                     removeSelectedElement();
                 }
                 break;
-                
+
             case 'paste': {
                 const copiedElement = window.constructorApp.getCopiedElement();
                 if (!copiedElement) return;
@@ -57,14 +57,13 @@ export function initContextMenu(contextMenu) {
                     targetContainer = window.constructorApp.workspace;
                     insertPosition = null;
                 }
-                
+
                 if (targetContainer) {
                     if (insertPosition) {
                         targetContainer.insertBefore(clone, insertPosition);
                     } else {
                         targetContainer.appendChild(clone);
                     }
-                    addElementControls(clone);
                     initDraggableElement(clone);
                     invalidateElementCache(clone);
                     window.constructorApp.setSelectedElement(clone);
@@ -72,15 +71,29 @@ export function initContextMenu(contextMenu) {
                 }
                 break;
             }
-                
+
             case 'duplicate':
                 duplicateSelectedElement();
                 break;
-                
+            case 'copy-styles':
+                if (selectedElement) {
+                    import('./styleClipboard.js').then(module => {
+                        module.copyStyles(selectedElement);
+                    });
+                }
+                break;
+
+            case 'paste-styles':
+                if (selectedElement) {
+                    import('./styleClipboard.js').then(module => {
+                        module.applyStyles(selectedElement);
+                    });
+                }
+                break;
             case 'delete':
                 removeSelectedElement();
                 break;
-                
+
             case 'move-up':
                 if (selectedElement && selectedElement.previousElementSibling) {
                     let prev = selectedElement.previousElementSibling;
@@ -94,7 +107,7 @@ export function initContextMenu(contextMenu) {
                     }
                 }
                 break;
-                
+
             case 'move-down':
                 if (selectedElement && selectedElement.nextElementSibling) {
                     let next = selectedElement.nextElementSibling;
@@ -109,7 +122,7 @@ export function initContextMenu(contextMenu) {
                 }
                 break;
         }
-        
+
         hideContextMenu(contextMenu);
     });
 }
@@ -122,7 +135,7 @@ function collectElementValues(element) {
     };
 
     Array.from(element.attributes).forEach(attr => {
-        if (attr.name.startsWith('data-') && 
+        if (attr.name.startsWith('data-') &&
             !['data-type', 'data-index', 'data-config', 'data-id'].includes(attr.name) &&
             !attr.name.startsWith('data-constructor-') &&
             !attr.name.startsWith('data-tv-')) {
@@ -187,12 +200,12 @@ export function showContextMenu(e, contextMenu) {
     const menuWidth = contextMenu.offsetWidth;
     const menuHeight = contextMenu.offsetHeight;
     contextMenu.style.visibility = '';
-    
+
     let mouseX = e.clientX;
     let mouseY = e.clientY;
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    
+
     if (mouseX + menuWidth > windowWidth - 10) {
         mouseX = windowWidth - menuWidth - 10;
     }
@@ -201,7 +214,7 @@ export function showContextMenu(e, contextMenu) {
     }
     mouseX = Math.max(10, mouseX);
     mouseY = Math.max(10, mouseY);
-    
+
     contextMenu.style.left = mouseX + 'px';
     contextMenu.style.top = mouseY + 'px';
     contextMenu.style.display = 'block';

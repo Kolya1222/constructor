@@ -11,6 +11,13 @@
     <div class="context-menu-item" data-action="duplicate">
         <i class="fas fa-clone"></i> Дублировать
     </div>
+    <div class="context-menu-item" data-action="copy-styles">
+        <i class="fas fa-copy"></i> Копировать стили
+    </div>
+    <div class="context-menu-item" data-action="paste-styles">
+        <i class="fas fa-paint-brush"></i> Применить стили
+    </div>
+    <hr>
     <div class="context-menu-item" data-action="delete">
         <i class="fas fa-trash"></i> Удалить
     </div>

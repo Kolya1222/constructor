@@ -1,5 +1,4 @@
 import { updatePropertiesPanel } from './propertiesPanel.js';
-import { destroyElementControls, addElementControls } from './elementControls.js';
 import { invalidateElementCache } from './cache.js';
 import { createElement } from './elementCreation.js';
 import { initDraggableElement } from './dragAndDrop.js';
@@ -8,7 +7,6 @@ export function removeSelectedElement() {
     const selectedElement = window.constructorApp.getSelectedElement();
     if (selectedElement && selectedElement.parentNode) {
         invalidateElementCache(selectedElement);
-        destroyElementControls(selectedElement);
         selectedElement.parentNode.removeChild(selectedElement);
         window.constructorApp.setSelectedElement(null);
         updatePropertiesPanel();
@@ -31,7 +29,6 @@ export function duplicateSelectedElement() {
 
     selectedElement.parentNode.insertBefore(newElement, selectedElement.nextSibling);
 
-    addElementControls(newElement);
     initDraggableElement(newElement);
     invalidateElementCache(newElement);
 
