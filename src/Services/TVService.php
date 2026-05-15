@@ -28,7 +28,7 @@ class TVService
             )
             ->orderBy('tvt.rank', 'ASC')
             ->get();
-        return $tvs->map(function($tv) {
+        return $tvs->map(function ($tv) {
             return [
                 'id' => $tv->id,
                 'name' => $tv->name,
@@ -41,5 +41,15 @@ class TVService
                 'template_rank' => $tv->template_rank
             ];
         });
+    }
+    public function getBaseFields(): array
+    {
+        return [
+            ['name' => 'pagetitle', 'caption' => 'Заголовок', 'type' => 'text'],
+            ['name' => 'longtitle', 'caption' => 'Расширенный заголовок', 'type' => 'text'],
+            ['name' => 'description', 'caption' => 'Описание', 'type' => 'text'],
+            ['name' => 'introtext', 'caption' => 'Вводный текст', 'type' => 'text'],
+            ['name' => 'content', 'caption' => 'Содержимое', 'type' => 'text'],
+        ];
     }
 }

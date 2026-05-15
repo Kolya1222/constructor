@@ -8,9 +8,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 
-$modx = evo();
-
-Event::listen(['evolution.OnLoadSettings'], function() use ($modx) {
+Event::listen(['evolution.OnLoadSettings'], function() {
     try {
         if (!Schema::hasTable('document_builder_data')) {
             Schema::create('document_builder_data', function (Blueprint $table) {
@@ -28,16 +26,17 @@ Event::listen(['evolution.OnLoadSettings'], function() use ($modx) {
     }
 });
 
-Event::listen(['evolution.OnDocFormRender'], function () use ($modx) { 
+Event::listen(['evolution.OnDocFormRender'], function () { 
     try {
         $elementService = new ElementService();
         $repositories = $elementService->getRepositories();
         $tvService = new TVService();
+        $baseFields = $tvService->getBaseFields();
         $documentId = $_GET['id'] ?? 0;
         $templateId = 0;
         
         if ($documentId > 0) {
-            $document = $modx->getDocument($documentId);
+            $document = evo()->getDocument($documentId);
             $templateId = $document['template'] ?? 0;
         } else {
             $templateId = $_GET['template'] ?? 0;
@@ -51,7 +50,6 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
             ];
         })->values();
 
-        // Загружаем сохраненные данные
         $savedData = null;
         if ($documentId > 0) {
             $savedRecord = DB::table('document_builder_data')
@@ -64,19 +62,19 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
                 ];
             }
         }
-        
-        // Используем сервис для получения иконок
+
         $elementIcons = $elementService->getElementIcons();
         
         $renderedContent = view('constructor::bbevo', [
             'tvCategories' => $tvCategories,
+            'baseFields' => $baseFields,
             'savedData' => $savedData,
             'documentId' => $documentId,
             'elementIcons' => $elementIcons,
             'repositories' => $repositories
         ])->render();
         
-        $modx->regClientHTMLBlock("
+        evo()->regClientHTMLBlock("
             <div class='tab' id='tab'>
                 <div class='tab' id='startTab'>
                     <h2 class='tab'><i class='fa fa-building'></i>Конструктор</h2>
@@ -92,12 +90,10 @@ Event::listen(['evolution.OnDocFormRender'], function () use ($modx) {
     }
 });
 
-// Событие для сохранения данных конструктора
-Event::listen(['evolution.OnDocFormSave'], function($params) use ($modx) {
+Event::listen(['evolution.OnDocFormSave'], function($params) {
     try {
         $documentId = $params['id'];
-        
-        // Проверяем, есть ли данные конструктора в POST
+
         if (isset($_POST['formbuilder']) && is_array($_POST['formbuilder'])) {
             $formData = $_POST['formbuilder'];
             $elements = [];
@@ -109,7 +105,7 @@ Event::listen(['evolution.OnDocFormSave'], function($params) use ($modx) {
                         if ($parentIndex === '') {
                             $parentIndex = null;
                         }
-                        // Если parentIndex строка, но содержит число
+
                         elseif (is_string($parentIndex) && is_numeric($parentIndex)) {
                             $parentIndex = (int)$parentIndex;
                         }
@@ -128,11 +124,9 @@ Event::listen(['evolution.OnDocFormSave'], function($params) use ($modx) {
                     }
                 }
             }
-            
-            // Генерируем HTML
+
             $htmlOutput = $_POST['formbuilder_html'] ?? '';
-            
-            // Сохраняем в базу данных
+
             $existingRecord = DB::table('document_builder_data')
                 ->where('document_id', $documentId)
                 ->first();
@@ -154,7 +148,6 @@ Event::listen(['evolution.OnDocFormSave'], function($params) use ($modx) {
                     ->insert($data);
             }
         } else {
-            // Если данных нет, удаляем запись
             DB::table('document_builder_data')
                 ->where('document_id', $documentId)
                 ->delete();
