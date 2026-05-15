@@ -31,6 +31,19 @@
                     @endforeach
                 </div>
             </div>
+            <div class="elements-section">
+                <h6 class="section-title">Базовые поля</h6>
+                <div class="tv-elements">
+                    @foreach ($baseFields as $field)
+                        <div class="element-icon tv-element" draggable="true" data-type="tv"
+                            data-tv-name="{{ $field['name'] }}" data-tv-type="{{ $field['type'] }}"
+                            title="{{ $field['caption'] }}">
+                            <i class="fas fa-database"></i>
+                            <span class="element-label">{{ $field['caption'] }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
         </div>
     </div>
 
